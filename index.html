@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>TaskMint – AI Task Platform by JalbinX</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Plus Jakarta Sans',sans-serif;transition:background .3s,color .3s;}
+button,input,textarea{font-family:'Plus Jakarta Sans',sans-serif;outline:none;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:none;}}
+@keyframes toastIn{from{transform:translateX(80px);opacity:0;}to{transform:none;opacity:1;}}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+@keyframes chatBounce{0%,100%{transform:translateY(0);}50%{transform:translateY(-5px);}}
+::-webkit-scrollbar{width:5px;}
+::-webkit-scrollbar-thumb{border-radius:4px;background:#555;}
+.card-hover{transition:transform .2s,box-shadow .2s,border-color .2s;}
+.card-hover:hover{transform:translateY(-3px);}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect,useRef}=React;
+
+const DARK={bg:"#0d0f18",surface:"#151722",card:"#1a1d2e",border:"#252840",accent:"#4f6ef7",accentHover:"#6b84ff",accentSoft:"rgba(79,110,247,0.15)",green:"#10b981",greenSoft:"rgba(16,185,129,0.12)",yellow:"#f59e0b",red:"#ef4444",text:"#f1f3ff",sub:"#a0a8d0",muted:"#606480",dim:"#252840",shadow:"rgba(0,0,0,0.4)",aiBubble:"#252840",userBubble:"#4f6ef7"};
+const LIGHT={bg:"#f5f6ff",surface:"#ffffff",card:"#ffffff",border:"#e2e5f5",accent:"#4f6ef7",accentHover:"#3a5be0",accentSoft:"rgba(79,110,247,0.1)",green:"#059669",greenSoft:"rgba(5,150,105,0.1)",yellow:"#d97706",red:"#dc2626",text:"#0f1128",sub:"#374270",muted:"#6b7280",dim:"#e2e5f5",shadow:"rgba(79,110,247,0.1)",aiBubble:"#e2e5f5",userBubble:"#4f6ef7"};
+
+const TASKS=[
+  {id:1,icon:"🖼️",category:"Image Labeling",diff:"Easy",reward:1.20,time:"~4 min",open:847,title:"Label objects in city photos",desc:"Look at each photo and select all labels that apply.",images:["https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=400&q=80","https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b?w=400&q=80","https://images.unsplash.com/photo-1444084316824-dc26d6657664?w=400&q=80"],labels:["Car","Person","Building","Tree","Traffic Light","Bus","Bicycle","Sign"],taskType:"image-label"},
+  {id:2,icon:"⭐",category:"Text Review",diff:"Easy",reward:0.85,time:"~3 min",open:2340,title:"Rate AI product descriptions",desc:"Read each product description and rate it 1 to 5 stars for quality.",samples:[{product:"Wireless Earbuds Pro X",text:"Experience crystal-clear audio with our premium earbuds. Featuring 30-hour battery life, active noise cancellation, and IPX5 water resistance."},{product:"Smart Water Bottle",text:"Stay hydrated smarter. LED temperature display, BPA-free Tritan plastic, 500ml capacity. Dishwasher safe."},{product:"Bamboo Desk Organizer",text:"Keep your workspace clean with 100% sustainable bamboo. 5 compartments for pens, cards, and accessories."}],taskType:"text-rate"},
+  {id:3,icon:"💬",category:"Sentiment Analysis",diff:"Easy",reward:1.60,time:"~5 min",open:1820,title:"Classify customer review sentiment",desc:"Read each review and mark it Positive, Negative, or Neutral.",reviews:[{id:"r1",text:"I absolutely love this product! Exceeded all expectations and delivery was super fast."},{id:"r2",text:"Arrived damaged and customer support was unhelpful. Took 3 weeks to get a refund."},{id:"r3",text:"The product is okay. Does what it says. Nothing special but nothing terrible either."},{id:"r4",text:"Outstanding quality! The craftsmanship is incredible and looks even better in person."},{id:"r5",text:"Delivery was delayed by two weeks with no communication. Product itself is fine though."}],taskType:"sentiment"},
+  {id:4,icon:"✅",category:"Data Verification",diff:"Medium",reward:3.40,time:"~10 min",open:230,title:"Verify business information",desc:"Check if each business detail looks correct and realistic.",businesses:[{name:"Green Leaf Cafe",address:"14 Palm Street, Lagos, Nigeria",phone:"+234 801 234 5678",hours:"Mon-Sat 7am-9pm"},{name:"TechHub Accra",address:"27 Independence Ave, Accra, Ghana",phone:"+233 24 567 8901",hours:"Mon-Fri 8am-6pm"},{name:"Blue Ocean Restaurant",address:"5 Marina Road, Cape Town, SA",phone:"+27 21 123 4567",hours:"Daily 11am-10pm"}],taskType:"verify"},
+  {id:5,icon:"🎙️",category:"Transcription",diff:"Medium",reward:2.50,time:"~7 min",open:412,title:"Transcribe spoken sentences",desc:"Type what you would hear in each audio scenario.",clips:[{id:"c1",scenario:"A weather forecaster says:",spoken:"Today we expect partly cloudy skies with temperatures reaching 28 degrees. There is a 30 percent chance of light showers in the afternoon."},{id:"c2",scenario:"A customer service agent says:",spoken:"Thank you for calling. Your order number 4572 has been shipped and will arrive within 3 to 5 business days."},{id:"c3",scenario:"A news anchor says:",spoken:"Local authorities confirmed the road construction on the main highway will be completed by end of next month."}],taskType:"transcribe"},
+  {id:6,icon:"🛡️",category:"Content Moderation",diff:"Medium",reward:2.10,time:"~8 min",open:560,title:"Flag inappropriate content",desc:"Review each post and decide: Approve or Flag.",posts:[{id:"p1",text:"Just made the most delicious jollof rice! Check out my recipe below 🍚🔥 #foodie #westafrica"},{id:"p2",text:"MAKE $5000 IN 24 HOURS!!! Click NOW. Send your bank details to claim your prize!!!"},{id:"p3",text:"Happy birthday to my amazing mum! 20 years of love and support. You are my hero ❤️"},{id:"p4",text:"This CEO is a criminal. Everyone should go harass their office until they refund me."},{id:"p5",text:"Beautiful sunset at the beach today. Nature never disappoints 🌅 #photography"}],taskType:"moderate"},
+  {id:7,icon:"📊",category:"Survey",diff:"Easy",reward:1.00,time:"~5 min",open:5000,title:"Share your shopping habits",desc:"Answer honestly — helps train better AI recommendation systems.",questions:[{q:"How often do you shop online?",opts:["Daily","Weekly","Monthly","Rarely","Never"]},{q:"What device do you mainly use?",opts:["Smartphone","Laptop","Tablet","Desktop PC"]},{q:"What matters most when choosing a product?",opts:["Price","Quality","Brand","Reviews","Delivery speed"]},{q:"How do you prefer to pay?",opts:["Debit/Credit Card","Mobile Money","Bank Transfer","Cash on Delivery"]},{q:"How satisfied are you with AI product recommendations?",opts:["Very satisfied","Satisfied","Neutral","Dissatisfied","Very dissatisfied"]}],taskType:"survey"},
+  {id:8,icon:"🌍",category:"Translation",diff:"Hard",reward:4.75,time:"~12 min",open:89,title:"Verify English translations",desc:"Rate how accurate each translation is.",pairs:[{en:"Please confirm your email to complete registration.",translated:"Por favor confirme su dirección de correo electrónico para completar el registro.",lang:"Spanish"},{en:"Your payment has been processed successfully.",translated:"Votre paiement a été traité avec succès.",lang:"French"},{en:"We apologize for the inconvenience caused.",translated:"Wir entschuldigen uns für die entstandenen Unannehmlichkeiten.",lang:"German"}],taskType:"translate"},
+];
+
+const LEADERBOARD=[{name:"maria_r",earned:312.40,tasks:284,flag:"🇳🇬"},{name:"dev_joel",earned:287.10,tasks:261,flag:"🇬🇭"},{name:"amy_k",earned:249.85,tasks:230,flag:"🇿🇦"},{name:"xiang_l",earned:198.50,tasks:182,flag:"🇰🇪"},{name:"b_thomas",earned:175.00,tasks:160,flag:"🇳🇬"}];
+
+const FAQS=[
+  {q:"Is TaskMint free to join?",a:"Yes, completely free. No subscription, no hidden fees. Create an account and start earning immediately."},
+  {q:"How much can I earn per month?",a:"Most active taskers earn $50–$300/month depending on availability and task types. Complex tasks like translation pay significantly more."},
+  {q:"When and how do I get paid?",a:"Withdrawals are processed within 1–3 business days. We support PayPal, Payoneer, Bank Transfer, USDT crypto, and Grey App for African workers."},
+  {q:"Do I need any qualifications?",a:"Most tasks require no qualifications — just a smartphone and attention to detail. Translation tasks require knowledge of the target language."},
+  {q:"How long does each task take?",a:"Tasks range from 3 to 15 minutes. Complete as many or as few as you want, whenever you want."},
+  {q:"Is this available in Nigeria and Ghana?",a:"Yes! TaskMint is fully accessible across Africa. Payments via mobile money, bank transfer, and Grey App for easy USD conversion."},
+  {q:"What happens if I make a mistake?",a:"Your accuracy is tracked over time. Occasional errors are fine — if accuracy drops below 70%, some tasks may be temporarily restricted."},
+  {q:"Is my personal data safe?",a:"This is a demo application built by JalbinX for portfolio purposes. No real data is stored or transmitted."},
+];
+
+const AI_RESPONSES={
+  "how much":"Most active taskers earn $50–$300/month. Translation and transcription tasks pay the most — up to $4.75 per task! The more tasks you complete, the more you earn.",
+  "earn":"You earn by completing simple AI training tasks: labeling images, reviewing text, verifying data, and more. Each task pays $0.85–$4.75.",
+  "withdraw":"Withdraw via PayPal, Payoneer, Bank Transfer, USDT crypto, or Grey App. Processes in 1–3 business days. No minimum withdrawal amount.",
+  "nigeria":"Yes! TaskMint works great in Nigeria 🇳🇬 Receive payments through Grey App or bank transfer. Many of our top earners are Nigerian!",
+  "ghana":"Yes! Available in Ghana 🇬🇭 Withdraw via MTN MoMo or bank transfer. Several top earners are from Accra!",
+  "task":"8 task types available: Image Labeling, Text Review, Sentiment Analysis, Data Verification, Transcription, Content Moderation, Surveys, and Translation. Rewards: $0.85–$4.75 each.",
+  "free":"100% free to join! No subscription, no hidden fees. Sign up and start earning immediately.",
+  "qualify":"No formal qualifications needed for most tasks. Just attention to detail and basic English. Translation tasks need target language fluency.",
+  "how":"Easy: 1) Create free account → 2) Browse tasks → 3) Complete honestly → 4) Earn money → 5) Withdraw. Start in under 2 minutes!",
+  "africa":"TaskMint is built with African workers in mind. We support Grey App, mobile money, and local bank transfers. Nigeria, Ghana, Kenya, South Africa — all welcome!",
+  "default":"Hi! TaskMint pays you to complete simple AI training tasks. Earn $0.85–$4.75 per task, withdraw via bank or PayPal. Ask me about earnings, tasks, payments, or availability in your country!",
+};
+
+const getAIReply=(msg)=>{const l=msg.toLowerCase();for(const [k,v] of Object.entries(AI_RESPONSES)){if(k!=="default"&&l.includes(k))return v;}return AI_RESPONSES.default;};
+const DC=(C)=>({Easy:C.green,Medium:C.yellow,Hard:C.red});
+
+const Badge=({label,color})=><span style={{fontSize:11,fontWeight:700,letterSpacing:"0.5px",textTransform:"uppercase",color,background:color+"22",borderRadius:6,padding:"3px 9px"}}>{label}</span>;
+const Toast=({msg})=>msg?<div style={{position:"fixed",top:24,right:24,zIndex:9999,background:"#10b981",color:"#fff",fontWeight:700,padding:"13px 22px",borderRadius:12,fontSize:15,boxShadow:"0 8px 30px rgba(16,185,129,0.4)",animation:"toastIn .3s ease"}}>{msg}</div>:null;
+const Overlay=({children,onBgClick})=><div onClick={onBgClick} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:16,backdropFilter:"blur(6px)"}}>{children}</div>;
+const MBox=({children})=><div onClick={e=>e.stopPropagation()} style={{background:"white",borderRadius:20,maxWidth:580,width:"100%",padding:28,maxHeight:"88vh",overflowY:"auto",boxShadow:"0 24px 80px rgba(0,0,0,0.3)",border:"1px solid #e2e5f5"}}>{children}</div>;
+const DBox=({children,C})=><div onClick={e=>e.stopPropagation()} style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:20,maxWidth:580,width:"100%",padding:28,maxHeight:"88vh",overflowY:"auto",boxShadow:"0 24px 80px rgba(0,0,0,0.35)"}}>{children}</div>;
+const Logo=({size,C})=><div style={{display:"inline-flex",alignItems:"center",gap:10}}><div style={{width:size==="lg"?44:34,height:size==="lg"?44:34,background:`linear-gradient(135deg,${C.accent},#818cf8)`,borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",fontSize:size==="lg"?22:17,boxShadow:`0 4px 20px ${C.accent}44`}}>⚡</div><span style={{fontWeight:800,fontSize:size==="lg"?28:20,letterSpacing:"-0.5px",color:C.text}}>Task<span style={{color:C.accent}}>Mint</span></span></div>;
+
+const Success=({reward,C})=><div style={{textAlign:"center",padding:"40px 0"}}><div style={{fontSize:56,marginBottom:16}}>🎉</div><h2 style={{color:C.green,fontSize:26,fontWeight:800,marginBottom:8}}>Task Complete!</h2><p style={{color:C.sub,fontSize:16}}>+${reward.toFixed(2)} added to your balance</p></div>;
+
+function ImageLabelTask({task,C,onEarn,onClose}){
+  const [cur,setCur]=useState(0);const [sel,setSel]=useState({});const [done,setDone]=useState(false);
+  const toggle=(l)=>setSel(p=>({...p,[l]:!p[l]}));
+  const next=()=>{if(cur<task.images.length-1){setCur(c=>c+1);setSel({});}else{setDone(true);setTimeout(()=>{onEarn(task.reward);onClose();},1800);}};
+  const hasAny=Object.values(sel).some(Boolean);
+  if(done)return <Success reward={task.reward} C={C}/>;
+  return <><p style={{color:C.sub,fontSize:12,fontWeight:600,marginBottom:8}}>Image {cur+1} of {task.images.length}</p>
+  <p style={{color:C.text,fontWeight:700,fontSize:15,marginBottom:12}}>Select all labels that apply:</p>
+  <img src={task.images[cur]} alt="" style={{width:"100%",borderRadius:12,marginBottom:14,maxHeight:200,objectFit:"cover"}}/>
+  <div style={{display:"flex",flexWrap:"wrap",gap:8,marginBottom:18}}>
+    {task.labels.map(l=><button key={l} onClick={()=>toggle(l)} style={{padding:"7px 14px",borderRadius:8,fontSize:13,fontWeight:600,border:`1.5px solid ${sel[l]?C.accent:C.border}`,background:sel[l]?C.accentSoft:"transparent",color:sel[l]?C.accent:C.sub,cursor:"pointer"}}>{l}</button>)}
+  </div>
+  <button onClick={next} disabled={!hasAny} style={{width:"100%",padding:"13px",borderRadius:12,border:"none",background:hasAny?`linear-gradient(135deg,${C.accent},#818cf8)`:"#ccc",color:"#fff",fontWeight:700,fontSize:15,cursor:hasAny?"pointer":"not-allowed"}}>
+    {cur<task.images.length-1?"Next Image →":"Submit & Earn 🎉"}
+  </button></>;
+}
+
+function TextRateTask({task,C,onEarn,onClose}){
+  const [ratings,setRatings]=useState({});const [done,setDone]=useState(false);
+  const allR=task.samples.every((_,i)=>ratings[i]);
+  const submit=()=>{setDone(true);setTimeout(()=>{onEarn(task.reward);onClose();},1800);};
+  if(done)return <Success reward={task.reward} C={C}/>;
+  return <><p style={{color:C.text,fontWeight:700,fontSize:15,marginBottom:18}}>Rate each product description (1–5 stars):</p>
+  {task.samples.map((s,i)=><div key={i} style={{background:C.surface,borderRadius:12,padding:14,marginBottom:12,border:`1px solid ${C.border}`}}>
+    <p style={{fontWeight:700,color:C.text,marginBottom:6}}>{s.product}</p>
+    <p style={{color:C.sub,fontSize:13,lineHeight:1.6,marginBottom:10}}>{s.text}</p>
+    <div style={{display:"flex",gap:6}}>{[1,2,3,4,5].map(r=><button key={r} onClick={()=>setRatings(p=>({...p,[i]:r}))} style={{width:36,height:36,borderRadius:8,border:`1.5px solid ${ratings[i]===r?C.yellow:C.border}`,background:ratings[i]>=r?C.yellow+"33":"transparent",color:ratings[i]>=r?C.yellow:C.muted,fontSize:18,cursor:"pointer"}}>★</button>)}</div>
+  </div>)}
+  <button onClick={submit} disabled={!allR} style={{width:"100%",padding:"13px",borderRadius:12,border:"none",background:allR?`linear-gradient(135deg,${C.accent},#818cf8)`:"#ccc",color:"#fff",fontWeight:700,fontSize:15,cursor:allR?"pointer":"not-allowed",marginTop:8}}>Submit & Earn 🎉</button></>;
+}
+
+function SentimentTask({task,C,onEarn,onClose}){
+  const [ans,setAns]=useState({});const [done,setDone]=useState(false);
+  const allD=task.reviews.every(r=>ans[r.id]);
+  const submit=()=>{setDone(true);setTimeout(()=>{onEarn(task.reward);onClose();},1800);};
+  const oc={Positive:C.green,Neutral:C.yellow,Negative:C.red};
+  if(done)return <Success reward={task.reward} C={C}/>;
+  return <><p style={{color:C.text,fontWeight:700,fontSize:15,marginBottom:18}}>Classify each review's sentiment:</p>
+  {task.reviews.map(r=><div key={r.id} style={{background:C.surface,borderRadius:12,padding:14,marginBottom:10,border:`1px solid ${C.border}`}}>
+    <p style={{color:C.text,fontSize:13,lineHeight:1.6,marginBottom:10}}>{r.text}</p>
+    <div style={{display:"flex",gap:6}}>{["Positive","Neutral","Negative"].map(o=><button key={o} onClick={()=>setAns(p=>({...p,[r.id]:o}))} style={{flex:1,padding:"7px 4px",borderRadius:8,fontSize:12,fontWeight:700,border:`1.5px solid ${ans[r.id]===o?oc[o]:C.border}`,background:ans[r.id]===o?oc[o]+"22":"transparent",color:ans[r.id]===o?oc[o]:C.muted,cursor:"pointer"}}>{o}</button>)}</div>
+  </div>)}
+  <button onClick={submit} disabled={!allD} style={{width:"100%",padding:"13px",borderRadius:12,border:"none",background:allD?`linear-gradient(135deg,${C.accent},#818cf8)`:"#ccc",color:"#fff",fontWeight:700,fontSize:15,cursor:allD?"pointer":"not-allowed",marginTop:6}}>Submit & Earn 🎉</button></>;
+}
+
+function VerifyTask({task,C,onEarn,onClose}){
+  const [ans,setAns]=useState({});const [done,setDone]=useState(false);
+  const allD=task.businesses.every((_,i)=>ans[i]);
+  const submit=()=>{setDone(true);setTimeout(()=>{onEarn(task.reward);onClose();},1800);};
+  if(done)return <Success reward={task.reward} C={C}/>;
+  return <><p style={{color:C.text,fontWeight:700,fontSize:15,marginBottom:18}}>Does this business information look real and accurate?</p>
+  {task.businesses.map((b,i)=><div key={i} style={{background:C.surface,borderRadius:12,padding:14,marginBottom:12,border:`1px solid ${C.border}`}}>
+    <p style={{fontWeight:700,color:C.text,fontSize:14,marginBottom:8}}>🏢 {b.name}</p>
+    <div style={{color:C.sub,fontSize:13,lineHeight:1.9}}>📍 {b.address}<br/>📞 {b.phone}<br/>🕐 {b.hours}</div>
+    <div style={{display:"flex",gap:6,marginTop:10}}>{["✅ Correct","❌ Incorrect","⚠️ Unsure"].map(o=><button key={o} onClick={()=>setAns(p=>({...p,[i]:o}))} style={{flex:1,padding:"7px 4px",borderRadius:8,fontSize:11,fontWeight:700,border:`1.5px solid ${ans[i]===o?C.accent:C.border}`,background:ans[i]===o?C.accentSoft:"transparent",color:ans[i]===o?C.accent:C.muted,cursor:"pointer"}}>{o}</button>)}</div>
+  </div>)}
+  <button onClick={submit} disabled={!allD} style={{width:"100%",padding:"13px",borderRadius:12,border:"none",background:allD?`linear-gradient(135deg,${C.accent},#818cf8)`:"#ccc",color:"#fff",fontWeight:700,fontSize:15,cursor:allD?"pointer":"not-allowed"}}>Submit & Earn 🎉</button></>;
+}
+
+function TranscribeTask({task,C,onEarn,onClose}){
+  const [ans,setAns]=useState({});const [shown,setShown]=useState({});const [done,setDone]=useState(false);
+  const allD=task.clips.every(c=>ans[c.id]&&ans[c.id].length>10);
+  const submit=()=>{setDone(true);setTimeout(()=>{onEarn(task.reward);onClose();},1800);};
+  if(done)return <Success reward={task.reward} C={C}/>;
+  return <><p style={{color:C.text,fontWeight:700,fontSize:15,marginBottom:6}}>Type what you hear in each audio clip:</p>
+  <p style={{color:C.muted,fontSize:13,marginBottom:18}}>Click "Play" to reveal the audio, then type it out.</p>
+  {task.clips.map(c=><div key={c.id} style={{background:C.surface,borderRadius:12,padding:14,marginBottom:12,border:`1px solid ${C.border}`}}>
+    <p style={{color:C.accent,fontSize:13,fontWeight:600,marginBottom:8}}>🎙️ {c.scenario}</p>
+    {!shown[c.id]?<button onClick={()=>setShown(p=>({...p,[c.id]:true}))} style={{padding:"7px 14px",borderRadius:8,border:`1px solid ${C.border}`,background:"transparent",color:C.sub,fontSize:13,cursor:"pointer",marginBottom:8}}>▶ Play Audio Clip</button>:
+    <div style={{background:C.accentSoft,borderRadius:8,padding:"8px 12px",marginBottom:10,color:C.sub,fontSize:12,fontStyle:"italic"}}>🔊 "{c.spoken.substring(0,50)}..."</div>}
+    <textarea value={ans[c.id]||""} onChange={e=>setAns(p=>({...p,[c.id]:e.target.value}))} placeholder="Type what you heard..." style={{width:"100%",minHeight:65,background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 12px",color:C.text,fontSize:13,resize:"vertical"}}/>
+  </div>)}
+  <button onClick={submit} disabled={!allD} style={{width:"100%",padding:"13px",borderRadius:12,border:"none",background:allD?`linear-gradient(135deg,${C.accent},#818cf8)`:"#ccc",color:"#fff",fontWeight:700,fontSize:15,cursor:allD?"pointer":"not-allowed"}}>Submit & Earn 🎉</button></>;
+}
+
+function ModerateTask({task,C,onEarn,onClose}){
+  const [ans,setAns]=useState({});const [done,setDone]=useState(false);
+  const allD=task.posts.every(p=>ans[p.id]);
+  const submit=()=>{setDone(true);setTimeout(()=>{onEarn(task.reward);onClose();},1800);};
+  if(done)return <Success reward={task.reward} C={C}/>;
+  return <><p style={{color:C.text,fontWeight:700,fontSize:15,marginBottom:18}}>Should each post be approved or flagged?</p>
+  {task.posts.map(p=><div key={p.id} style={{background:C.surface,borderRadius:12,padding:14,marginBottom:10,border:`1px solid ${C.border}`}}>
+    <p style={{color:C.text,fontSize:13,lineHeight:1.6,marginBottom:10}}>{p.text}</p>
+    <div style={{display:"flex",gap:6}}>{[{l:"✅ Approve",v:"approve"},{l:"🚫 Flag",v:"flag"},{l:"⚠️ Unsure",v:"unsure"}].map(o=><button key={o.v} onClick={()=>setAns(prev=>({...prev,[p.id]:o.v}))} style={{flex:1,padding:"7px 4px",borderRadius:8,fontSize:12,fontWeight:700,border:`1.5px solid ${ans[p.id]===o.v?C.accent:C.border}`,background:ans[p.id]===o.v?C.accentSoft:"transparent",color:ans[p.id]===o.v?C.accent:C.muted,cursor:"pointer"}}>{o.l}</button>)}</div>
+  </div>)}
+  <button onClick={submit} disabled={!allD} style={{width:"100%",padding:"13px",borderRadius:12,border:"none",background:allD?`linear-gradient(135deg,${C.accent},#818cf8)`:"#ccc",color:"#fff",fontWeight:700,fontSize:15,cursor:allD?"pointer":"not-allowed",marginTop:4}}>Submit & Earn 🎉</button></>;
+}
+
+function SurveyTask({task,C,onEarn,onClose}){
+  const [ans,setAns]=useState({});const [done,setDone]=useState(false);
+  const allD=task.questions.every((_,i)=>ans[i]);
+  const submit=()=>{setDone(true);setTimeout(()=>{onEarn(task.reward);onClose();},1800);};
+  if(done)return <Success reward={task.reward} C={C}/>;
+  return <><p style={{color:C.text,fontWeight:700,fontSize:15,marginBottom:18}}>Answer all questions honestly:</p>
+  {task.questions.map((q,i)=><div key={i} style={{marginBottom:18}}>
+    <p style={{color:C.text,fontWeight:600,fontSize:14,marginBottom:10}}>{i+1}. {q.q}</p>
+    <div style={{display:"flex",flexWrap:"wrap",gap:8}}>{q.opts.map(o=><button key={o} onClick={()=>setAns(p=>({...p,[i]:o}))} style={{padding:"7px 14px",borderRadius:8,fontSize:13,fontWeight:600,border:`1.5px solid ${ans[i]===o?C.accent:C.border}`,background:ans[i]===o?C.accentSoft:"transparent",color:ans[i]===o?C.accent:C.sub,cursor:"pointer"}}>{o}</button>)}</div>
+  </div>)}
+  <button onClick={submit} disabled={!allD} style={{width:"100%",padding:"13px",borderRadius:12,border:"none",background:allD?`linear-gradient(135deg,${C.accent},#818cf8)`:"#ccc",color:"#fff",fontWeight:700,fontSize:15,cursor:allD?"pointer":"not-allowed",marginTop:4}}>Submit & Earn 🎉</button></>;
+}
+
+function TranslateTask({task,C,onEarn,onClose}){
+  const [ans,setAns]=useState({});const [done,setDone]=useState(false);
+  const allD=task.pairs.every((_,i)=>ans[i]);
+  const submit=()=>{setDone(true);setTimeout(()=>{onEarn(task.reward);onClose();},1800);};
+  if(done)return <Success reward={task.reward} C={C}/>;
+  return <><p style={{color:C.text,fontWeight:700,fontSize:15,marginBottom:18}}>Rate each translation accuracy:</p>
+  {task.pairs.map((p,i)=><div key={i} style={{background:C.surface,borderRadius:12,padding:14,marginBottom:12,border:`1px solid ${C.border}`}}>
+    <p style={{color:C.muted,fontSize:11,fontWeight:600,textTransform:"uppercase",marginBottom:4}}>English:</p>
+    <p style={{color:C.text,fontSize:13,lineHeight:1.6,marginBottom:10}}>{p.en}</p>
+    <p style={{color:C.accent,fontSize:11,fontWeight:600,textTransform:"uppercase",marginBottom:4}}>{p.lang}:</p>
+    <p style={{color:C.sub,fontSize:13,lineHeight:1.6,marginBottom:12}}>{p.translated}</p>
+    <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{["Perfect","Good","Acceptable","Poor","Wrong"].map(o=><button key={o} onClick={()=>setAns(prev=>({...prev,[i]:o}))} style={{padding:"6px 12px",borderRadius:8,fontSize:12,fontWeight:600,border:`1.5px solid ${ans[i]===o?C.accent:C.border}`,background:ans[i]===o?C.accentSoft:"transparent",color:ans[i]===o?C.accent:C.muted,cursor:"pointer"}}>{o}</button>)}</div>
+  </div>)}
+  <button onClick={submit} disabled={!allD} style={{width:"100%",padding:"13px",borderRadius:12,border:"none",background:allD?`linear-gradient(135deg,${C.accent},#818cf8)`:"#ccc",color:"#fff",fontWeight:700,fontSize:15,cursor:allD?"pointer":"not-allowed"}}>Submit & Earn 🎉</button></>;
+}
+
+function TaskModal({task,C,onEarn,onClose}){
+  const dcol=DC(C);
+  const content=()=>{
+    switch(task.taskType){
+      case "image-label":return <ImageLabelTask task={task} C={C} onEarn={onEarn} onClose={onClose}/>;
+      case "text-rate":return <TextRateTask task={task} C={C} onEarn={onEarn} onClose={onClose}/>;
+      case "sentiment":return <SentimentTask task={task} C={C} onEarn={onEarn} onClose={onClose}/>;
+      case "verify":return <VerifyTask task={task} C={C} onEarn={onEarn} onClose={onClose}/>;
+      case "transcribe":return <TranscribeTask task={task} C={C} onEarn={onEarn} onClose={onClose}/>;
+      case "moderate":return <ModerateTask task={task} C={C} onEarn={onEarn} onClose={onClose}/>;
+      case "survey":return <SurveyTask task={task} C={C} onEarn={onEarn} onClose={onClose}/>;
+      case "translate":return <TranslateTask task={task} C={C} onEarn={onEarn} onClose={onClose}/>;
+      default:return null;
+    }
+  };
+  return <Overlay onBgClick={onClose}><DBox C={C}>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:18}}>
+      <div style={{display:"flex",alignItems:"center",gap:10}}>
+        <span style={{fontSize:24}}>{task.icon}</span>
+        <div><p style={{color:C.text,fontWeight:700,fontSize:16}}>{task.title}</p><div style={{display:"flex",gap:6,marginTop:4}}><Badge label={task.category} color={C.accent}/><Badge label={task.diff} color={dcol[task.diff]}/><span style={{color:C.green,fontSize:13,fontWeight:700}}>${task.reward.toFixed(2)}</span></div></div>
+      </div>
+      <button onClick={onClose} style={{background:"none",border:"none",color:C.muted,fontSize:22,cursor:"pointer",padding:4}}>✕</button>
+    </div>
+    {content()}
+  </DBox></Overlay>;
+}
+
+function WithdrawModal({balance,C,onClose,onWithdraw}){
+  const [method,setMethod]=useState("Grey App");const [address,setAddress]=useState("");const [done,setDone]=useState(false);
+  const methods=["PayPal","Payoneer","Bank Transfer","USDT (TRC-20)","Grey App"];
+  const submit=()=>{if(!address.trim())return;setDone(true);setTimeout(()=>{onWithdraw();onClose();},2000);};
+  return <Overlay onBgClick={onClose}><DBox C={C}>
+    {done?<div style={{textAlign:"center",padding:"40px 0"}}><div style={{fontSize:52,marginBottom:14}}>✅</div><h2 style={{color:C.green,marginBottom:8,fontWeight:800}}>Withdrawal Submitted!</h2><p style={{color:C.sub}}>Your ${balance.toFixed(2)} arrives in 1–3 business days.</p></div>:
+    <><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+      <h2 style={{color:C.text,fontWeight:800,fontSize:20}}>Withdraw Earnings</h2>
+      <button onClick={onClose} style={{background:"none",border:"none",color:C.muted,fontSize:22,cursor:"pointer"}}>✕</button>
+    </div>
+    <div style={{background:C.greenSoft,border:`1px solid ${C.green}44`,borderRadius:12,padding:"16px 20px",marginBottom:22,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+      <span style={{color:C.muted,fontSize:14,fontWeight:600}}>Available Balance</span>
+      <span style={{color:C.green,fontWeight:800,fontSize:26}}>${balance.toFixed(2)}</span>
+    </div>
+    <p style={{color:C.muted,fontSize:12,fontWeight:700,textTransform:"uppercase",letterSpacing:"1px",marginBottom:10}}>Payment Method</p>
+    <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:20}}>
+      {methods.map(m=><button key={m} onClick={()=>setMethod(m)} style={{padding:"8px 14px",borderRadius:8,fontSize:13,fontWeight:600,border:`1.5px solid ${method===m?C.accent:C.border}`,background:method===m?C.accentSoft:"transparent",color:method===m?C.accent:C.sub,cursor:"pointer"}}>{m}</button>)}
+    </div>
+    <p style={{color:C.muted,fontSize:12,fontWeight:700,textTransform:"uppercase",letterSpacing:"1px",marginBottom:10}}>{method==="Bank Transfer"?"Account Details":method.includes("USDT")?"Wallet Address":`${method} Email/ID`}</p>
+    <input value={address} onChange={e=>setAddress(e.target.value)} placeholder={`Enter your ${method} details...`} style={{width:"100%",background:C.surface,border:`1px solid ${C.border}`,borderRadius:10,padding:"12px 14px",color:C.text,fontSize:14,marginBottom:16}}/>
+    <button onClick={submit} disabled={!address.trim()} style={{width:"100%",padding:"14px",borderRadius:12,border:"none",background:address.trim()?`linear-gradient(135deg,${C.green},#059669)`:"#ccc",color:"#fff",fontWeight:700,fontSize:15,cursor:address.trim()?"pointer":"not-allowed"}}>Withdraw ${balance.toFixed(2)}</button></>}
+  </DBox></Overlay>;
+}
+
+function ChatWidget({C}){
+  const [open,setOpen]=useState(false);
+  const [msgs,setMsgs]=useState([{role:"ai",text:"Hi! 👋 I'm TaskMint AI. Ask me about earning, tasks, payments, or how to get started!"}]);
+  const [input,setInput]=useState("");const [typing,setTyping]=useState(false);
+  const endRef=useRef(null);
+  useEffect(()=>{if(open&&endRef.current)endRef.current.scrollIntoView({behavior:"smooth"});},[msgs,open,typing]);
+  const send=()=>{if(!input.trim())return;const q=input.trim();setMsgs(p=>[...p,{role:"user",text:q}]);setInput("");setTyping(true);setTimeout(()=>{setTyping(false);setMsgs(p=>[...p,{role:"ai",text:getAIReply(q)}]);},1100);};
+  return <>
+    <button onClick={()=>setOpen(o=>!o)} style={{position:"fixed",bottom:28,right:28,zIndex:500,width:58,height:58,borderRadius:"50%",background:`linear-gradient(135deg,${C.accent},#818cf8)`,border:"none",color:"#fff",fontSize:26,cursor:"pointer",boxShadow:`0 8px 30px ${C.accent}55`,animation:"chatBounce 2.5s ease-in-out infinite"}}>
+      {open?"✕":"💬"}
+    </button>
+    {open&&<div style={{position:"fixed",bottom:100,right:28,zIndex:500,width:300,background:C.card,border:`1px solid ${C.border}`,borderRadius:20,boxShadow:`0 16px 60px rgba(0,0,0,0.3)`,display:"flex",flexDirection:"column",maxHeight:420}}>
+      <div style={{background:`linear-gradient(135deg,${C.accent},#818cf8)`,borderRadius:"20px 20px 0 0",padding:"14px 18px",display:"flex",alignItems:"center",gap:10}}>
+        <div style={{width:32,height:32,borderRadius:"50%",background:"rgba(255,255,255,0.2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}>🤖</div>
+        <div><p style={{color:"#fff",fontWeight:700,fontSize:14}}>TaskMint AI</p><p style={{color:"rgba(255,255,255,0.75)",fontSize:11}}>Always here to help</p></div>
+      </div>
+      <div style={{flex:1,overflowY:"auto",padding:12,display:"flex",flexDirection:"column",gap:8}}>
+        {msgs.map((m,i)=><div key={i} style={{display:"flex",justifyContent:m.role==="user"?"flex-end":"flex-start"}}>
+          <div style={{maxWidth:"84%",padding:"9px 13px",borderRadius:m.role==="user"?"14px 14px 4px 14px":"14px 14px 14px 4px",background:m.role==="user"?C.userBubble:C.aiBubble,color:m.role==="user"?"#fff":C.text,fontSize:13,lineHeight:1.6}}>{m.text}</div>
+        </div>)}
+        {typing&&<div style={{display:"flex",gap:4,padding:"9px 13px",background:C.aiBubble,borderRadius:"14px 14px 14px 4px",width:"fit-content"}}>
+          {[0,1,2].map(i=><div key={i} style={{width:7,height:7,borderRadius:"50%",background:C.muted,animation:`pulse 1s ${i*0.2}s infinite`}}/>)}
+        </div>}
+        <div ref={endRef}/>
+      </div>
+      <div style={{padding:10,borderTop:`1px solid ${C.border}`,display:"flex",gap:6}}>
+        <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()} placeholder="Ask anything..." style={{flex:1,background:C.surface,border:`1px solid ${C.border}`,borderRadius:9,padding:"9px 12px",color:C.text,fontSize:13}}/>
+        <button onClick={send} disabled={!input.trim()} style={{width:36,height:36,borderRadius:9,border:"none",background:input.trim()?C.accent:"#ccc",color:"#fff",cursor:input.trim()?"pointer":"not-allowed",fontSize:16}}>↑</button>
+      </div>
+    </div>}
+  </>;
+}
+
+function FAQSection({C}){
+  const [open,setOpen]=useState(null);
+  return <div style={{maxWidth:780,margin:"0 auto",padding:"60px 20px"}}>
+    <h2 style={{color:C.text,fontWeight:800,fontSize:30,textAlign:"center",marginBottom:8}}>Frequently Asked Questions</h2>
+    <p style={{color:C.muted,textAlign:"center",marginBottom:36,fontSize:15}}>Everything you need to know before you start earning</p>
+    <div style={{display:"flex",flexDirection:"column",gap:10}}>
+      {FAQS.map((f,i)=><div key={i} style={{background:C.card,border:`1px solid ${open===i?C.accent:C.border}`,borderRadius:14,overflow:"hidden",transition:"border-color .2s"}}>
+        <button onClick={()=>setOpen(open===i?null:i)} style={{width:"100%",padding:"18px 20px",background:"none",border:"none",display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"pointer",textAlign:"left"}}>
+          <span style={{color:C.text,fontWeight:700,fontSize:15}}>{f.q}</span>
+          <span style={{color:C.accent,fontSize:22,fontWeight:700,flexShrink:0,marginLeft:10,lineHeight:1}}>{open===i?"−":"+"}</span>
+        </button>
+        {open===i&&<div style={{padding:"0 20px 18px",color:C.sub,fontSize:14,lineHeight:1.75,borderTop:`1px solid ${C.border}`}}><br/>{f.a}</div>}
+      </div>)}
+    </div>
+  </div>;
+}
+
+function Landing({onEnter,C,dark,toggleDark}){
+  const dcol=DC(C);
+  const steps=[{n:"1",t:"Create Account",d:"Sign up free in 60 seconds."},{n:"2",t:"Pick a Task",d:"Browse tasks by category and pay."},{n:"3",t:"Complete & Earn",d:"Submit honest answers, earn cash."},{n:"4",t:"Withdraw",d:"Transfer to bank, PayPal, or Grey App."}];
+  return <div style={{minHeight:"100vh",background:C.bg,color:C.text}}>
+    <nav style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"0 28px",height:66,borderBottom:`1px solid ${C.border}`,background:C.bg,position:"sticky",top:0,zIndex:50}}>
+      <Logo C={C}/>
+      <div style={{display:"flex",gap:8,alignItems:"center"}}>
+        <span style={{color:C.muted,fontSize:12,fontFamily:"'JetBrains Mono',monospace",fontWeight:500}}>by JalbinX</span>
+        <button onClick={toggleDark} title="Toggle theme" style={{width:38,height:38,borderRadius:10,border:`1px solid ${C.border}`,background:C.surface,color:C.text,fontSize:16,cursor:"pointer"}}>{dark?"☀️":"🌙"}</button>
+        <button onClick={onEnter} style={{background:`linear-gradient(135deg,${C.accent},#818cf8)`,color:"#fff",border:"none",padding:"10px 22px",borderRadius:10,fontSize:14,fontWeight:700,cursor:"pointer"}}>Launch App →</button>
+      </div>
+    </nav>
+    <div style={{maxWidth:920,margin:"0 auto",padding:"80px 24px 56px",textAlign:"center"}}>
+      <div style={{display:"inline-block",background:C.accentSoft,border:`1px solid ${C.accent}44`,borderRadius:20,padding:"5px 16px",marginBottom:22,fontSize:12,color:C.accent,fontFamily:"'JetBrains Mono',monospace",letterSpacing:"1px",fontWeight:500}}>⚡ HUMAN × AI COLLABORATION PLATFORM</div>
+      <h1 style={{fontSize:"clamp(36px,6vw,68px)",fontWeight:800,lineHeight:1.1,marginBottom:20,color:C.text}}>Get Paid to Train<br/><span style={{color:C.accent}}>Better AI.</span></h1>
+      <p style={{color:C.sub,fontSize:17,maxWidth:500,margin:"0 auto 36px",lineHeight:1.75,fontWeight:500}}>AI companies pay real money for humans to label images, review text, verify data, and more. Join 48,000+ earners worldwide.</p>
+      <div style={{display:"flex",gap:14,justifyContent:"center",flexWrap:"wrap"}}>
+        <button onClick={onEnter} style={{background:`linear-gradient(135deg,${C.accent},#818cf8)`,color:"#fff",border:"none",padding:"15px 36px",borderRadius:12,fontSize:16,fontWeight:700,cursor:"pointer",boxShadow:`0 8px 30px ${C.accent}44`}}>Start Earning Free →</button>
+        <button onClick={onEnter} style={{background:"transparent",color:C.sub,border:`1.5px solid ${C.border}`,padding:"15px 32px",borderRadius:12,fontSize:16,cursor:"pointer",fontWeight:600}}>Browse Tasks</button>
+      </div>
+    </div>
+    <div style={{maxWidth:840,margin:"0 auto",padding:"0 24px 56px"}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(170px,1fr))",gap:14}}>
+        {[{v:"10,302",l:"Active Tasks"},{v:"$1.2M+",l:"Paid Out"},{v:"48,000+",l:"Taskers"},{v:"$0",l:"To Join"}].map((s,i)=><div key={i} style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:16,padding:"24px 20px",textAlign:"center",boxShadow:`0 4px 20px ${C.shadow}`}}>
+          <p style={{color:C.accent,fontWeight:800,fontSize:30}}>{s.v}</p>
+          <p style={{color:C.muted,fontSize:13,marginTop:6,fontWeight:600}}>{s.l}</p>
+        </div>)}
+      </div>
+    </div>
+    <div style={{maxWidth:840,margin:"0 auto",padding:"0 24px 56px"}}>
+      <h2 style={{textAlign:"center",fontWeight:800,fontSize:28,marginBottom:36,color:C.text}}>How It Works</h2>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(170px,1fr))",gap:14}}>
+        {steps.map((s,i)=><div key={i} style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:16,padding:22}}>
+          <div style={{width:40,height:40,borderRadius:"50%",background:C.accentSoft,border:`2px solid ${C.accent}`,display:"flex",alignItems:"center",justifyContent:"center",color:C.accent,fontWeight:800,fontSize:17,marginBottom:12}}>{s.n}</div>
+          <p style={{color:C.text,fontWeight:700,fontSize:14,marginBottom:6}}>{s.t}</p>
+          <p style={{color:C.muted,fontSize:13,lineHeight:1.6}}>{s.d}</p>
+        </div>)}
+      </div>
+    </div>
+    <div style={{maxWidth:960,margin:"0 auto",padding:"0 24px 56px"}}>
+      <h2 style={{textAlign:"center",fontWeight:800,fontSize:28,marginBottom:10,color:C.text}}>Real Tasks Available Now</h2>
+      <p style={{textAlign:"center",color:C.muted,marginBottom:32,fontSize:15,fontWeight:500}}>Each task has actual content to interact with — not just descriptions</p>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(270px,1fr))",gap:16}}>
+        {TASKS.slice(0,3).map(t=>{const dc=DC(C);return <div key={t.id} className="card-hover" style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:16,overflow:"hidden",boxShadow:`0 4px 20px ${C.shadow}`}}>
+          {t.images?<img src={t.images[0]} alt="" style={{width:"100%",height:140,objectFit:"cover"}}/>:<div style={{width:"100%",height:140,background:C.accentSoft,display:"flex",alignItems:"center",justifyContent:"center",fontSize:44}}>{t.icon}</div>}
+          <div style={{padding:18}}>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}><Badge label={t.category} color={C.accent}/><Badge label={t.diff} color={dc[t.diff]}/></div>
+            <p style={{color:C.text,fontWeight:700,fontSize:15,marginBottom:4}}>{t.title}</p>
+            <p style={{color:C.muted,fontSize:13,marginBottom:10}}>{t.desc}</p>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><span style={{color:C.green,fontWeight:800,fontSize:18}}>${t.reward.toFixed(2)}</span><span style={{color:C.muted,fontSize:12,fontWeight:500}}>{t.time}</span></div>
+          </div>
+        </div>;})}
+      </div>
+      <div style={{textAlign:"center",marginTop:24}}><button onClick={onEnter} style={{background:C.accentSoft,color:C.accent,border:`1.5px solid ${C.accent}44`,padding:"11px 26px",borderRadius:12,fontSize:14,fontWeight:700,cursor:"pointer"}}>View All 8 Tasks →</button></div>
+    </div>
+    <div style={{background:C.surface,borderTop:`1px solid ${C.border}`}}><FAQSection C={C}/></div>
+    <div style={{textAlign:"center",padding:"56px 24px"}}>
+      <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:24,maxWidth:540,margin:"0 auto",padding:"48px 32px",boxShadow:`0 20px 60px ${C.shadow}`}}>
+        <h2 style={{fontWeight:800,fontSize:28,marginBottom:10,color:C.text}}>Start earning today</h2>
+        <p style={{color:C.muted,fontSize:14,marginBottom:26,fontWeight:500}}>Free to join. No experience needed. Available across Africa.</p>
+        <button onClick={onEnter} style={{background:`linear-gradient(135deg,${C.green},#059669)`,color:"#fff",border:"none",padding:"14px 38px",borderRadius:12,fontSize:16,fontWeight:700,cursor:"pointer"}}>Create Free Account →</button>
+        <p style={{color:C.muted,fontSize:11,marginTop:14,fontFamily:"'JetBrains Mono',monospace"}}>Demo by JalbinX · buike@outlook.com · 2026</p>
+      </div>
+    </div>
+    <ChatWidget C={C}/>
+  </div>;
+}
+
+function AuthScreen({onLogin,C,dark,toggleDark}){
+  const [mode,setMode]=useState("login");const [form,setForm]=useState({name:"",email:"",pass:""});
+  const set=(k,v)=>setForm(f=>({...f,[k]:v}));
+  const submit=()=>{if(!form.email||!form.pass)return;onLogin(mode==="signup"&&form.name?form.name:form.email.split("@")[0]);};
+  return <div style={{minHeight:"100vh",background:C.bg,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24}}>
+    <div style={{position:"absolute",top:20,right:20}}><button onClick={toggleDark} style={{width:38,height:38,borderRadius:10,border:`1px solid ${C.border}`,background:C.surface,color:C.text,fontSize:16,cursor:"pointer"}}>{dark?"☀️":"🌙"}</button></div>
+    <div style={{width:"100%",maxWidth:400,animation:"fadeUp .4s ease"}}>
+      <div style={{textAlign:"center",marginBottom:30}}><Logo size="lg" C={C}/><p style={{color:C.muted,fontSize:14,marginTop:8,fontWeight:500}}>{mode==="login"?"Welcome back. Start earning.":"Join 48,000+ taskers worldwide."}</p></div>
+      <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:20,padding:30,boxShadow:`0 16px 50px ${C.shadow}`}}>
+        <div style={{display:"flex",background:C.surface,borderRadius:10,padding:4,marginBottom:22}}>
+          {["login","signup"].map(m=><button key={m} onClick={()=>setMode(m)} style={{flex:1,padding:"9px",border:"none",borderRadius:8,background:mode===m?C.accent:"transparent",color:mode===m?"#fff":C.muted,fontSize:13,fontWeight:700,cursor:"pointer",textTransform:"capitalize"}}>{m==="login"?"Sign In":"Sign Up"}</button>)}
+        </div>
+        {mode==="signup"&&<><label style={{display:"block",color:C.sub,fontSize:13,fontWeight:700,marginBottom:6}}>Full Name</label><input value={form.name} onChange={e=>set("name",e.target.value)} placeholder="John Chibuike" style={{width:"100%",background:C.surface,border:`1.5px solid ${C.border}`,borderRadius:10,padding:"12px 14px",color:C.text,fontSize:14,marginBottom:14}}/></>}
+        <label style={{display:"block",color:C.sub,fontSize:13,fontWeight:700,marginBottom:6}}>Email</label>
+        <input value={form.email} onChange={e=>set("email",e.target.value)} placeholder="you@email.com" type="email" style={{width:"100%",background:C.surface,border:`1.5px solid ${C.border}`,borderRadius:10,padding:"12px 14px",color:C.text,fontSize:14,marginBottom:14}}/>
+        <label style={{display:"block",color:C.sub,fontSize:13,fontWeight:700,marginBottom:6}}>Password</label>
+        <input value={form.pass} onChange={e=>set("pass",e.target.value)} placeholder="••••••••" type="password" style={{width:"100%",background:C.surface,border:`1.5px solid ${C.border}`,borderRadius:10,padding:"12px 14px",color:C.text,fontSize:14,marginBottom:18}}/>
+        <button onClick={submit} style={{width:"100%",padding:"14px",borderRadius:12,border:"none",background:`linear-gradient(135deg,${C.accent},#818cf8)`,color:"#fff",fontWeight:700,fontSize:15,cursor:"pointer",boxShadow:`0 8px 24px ${C.accent}44`}}>{mode==="login"?"Sign In →":"Create Free Account →"}</button>
+        <p style={{textAlign:"center",color:C.muted,fontSize:11,marginTop:12,fontFamily:"'JetBrains Mono',monospace"}}>Demo · No real data stored · Built by JalbinX</p>
+      </div>
+    </div>
+  </div>;
+}
+
+function Dashboard({username,C,dark,toggleDark,onLogout}){
+  const [balance,setBalance]=useState(0);const [completed,setCompleted]=useState(0);const [earnings,setEarnings]=useState([]);
+  const [activeTask,setActiveTask]=useState(null);const [showW,setShowW]=useState(false);
+  const [filter,setFilter]=useState("All");const [tab,setTab]=useState("tasks");const [toast,setToast]=useState(null);
+  const dcol=DC(C);const cats=["All",...new Set(TASKS.map(t=>t.category))];const filtered=filter==="All"?TASKS:TASKS.filter(t=>t.category===filter);
+  const showToast=(msg)=>{setToast(msg);setTimeout(()=>setToast(null),3000);};
+  const handleEarn=(amt)=>{const a=Math.round(amt*100)/100;setBalance(p=>Math.round((p+a)*100)/100);setCompleted(p=>p+1);setEarnings(p=>[{amount:a,task:activeTask.title,time:new Date().toLocaleTimeString()},...p]);showToast(`+$${a.toFixed(2)} earned! 🎉`);};
+  const handleWithdraw=()=>{setBalance(0);showToast("Withdrawal submitted! 💸");};
+  return <div style={{minHeight:"100vh",background:C.bg,color:C.text}}>
+    <Toast msg={toast}/>
+    {activeTask&&<TaskModal task={activeTask} C={C} onEarn={handleEarn} onClose={()=>setActiveTask(null)}/>}
+    {showW&&<WithdrawModal balance={balance} C={C} onClose={()=>setShowW(false)} onWithdraw={handleWithdraw}/>}
+    <header style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 22px",height:64,borderBottom:`1px solid ${C.border}`,background:C.bg,position:"sticky",top:0,zIndex:50,flexWrap:"wrap",gap:6}}>
+      <Logo C={C}/>
+      <div style={{display:"flex",gap:5}}>
+        {["tasks","earnings","leaderboard","faq"].map(t=><button key={t} onClick={()=>setTab(t)} style={{padding:"7px 13px",borderRadius:8,border:"none",background:tab===t?C.accent:"transparent",color:tab===t?"#fff":C.muted,fontSize:12,fontWeight:700,cursor:"pointer",textTransform:"capitalize"}}>{t==="faq"?"FAQ":t}</button>)}
+      </div>
+      <div style={{display:"flex",alignItems:"center",gap:10}}>
+        <div style={{textAlign:"right"}}><p style={{color:C.muted,fontSize:11,fontWeight:600}}>Balance</p><p style={{color:C.green,fontWeight:800,fontSize:20}}>${balance.toFixed(2)}</p></div>
+        <button onClick={()=>setShowW(true)} style={{background:`linear-gradient(135deg,${C.green},#059669)`,color:"#fff",border:"none",padding:"9px 18px",borderRadius:10,fontSize:13,fontWeight:700,cursor:"pointer"}}>Withdraw</button>
+        <button onClick={toggleDark} style={{width:36,height:36,borderRadius:9,border:`1px solid ${C.border}`,background:C.surface,color:C.text,fontSize:15,cursor:"pointer"}}>{dark?"☀️":"🌙"}</button>
+        <button onClick={onLogout} style={{background:"none",border:`1px solid ${C.border}`,color:C.muted,padding:"7px 13px",borderRadius:9,fontSize:12,cursor:"pointer",fontWeight:600}}>Logout</button>
+      </div>
+    </header>
+    <main style={{maxWidth:1100,margin:"0 auto",padding:"28px 18px"}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:12,marginBottom:28}}>
+        {[{icon:"✅",l:"Tasks Done",v:completed},{icon:"💰",l:"Balance",v:`$${balance.toFixed(2)}`},{icon:"📈",l:"Avg/Task",v:completed?`$${(balance/completed).toFixed(2)}`:"$0.00"},{icon:"🔥",l:"Available",v:"10,302"}].map((s,i)=><div key={i} style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:14,padding:"18px 20px",boxShadow:`0 4px 16px ${C.shadow}`}}>
+          <p style={{fontSize:22,marginBottom:6}}>{s.icon}</p><p style={{fontWeight:800,fontSize:22,color:C.text}}>{s.v}</p><p style={{color:C.muted,fontSize:12,fontWeight:600,marginTop:3}}>{s.l}</p>
+        </div>)}
+      </div>
+      {tab==="tasks"&&<>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:22}}>
+          {cats.map(c=><button key={c} onClick={()=>setFilter(c)} style={{padding:"7px 16px",borderRadius:20,fontSize:13,fontWeight:600,border:filter===c?"none":`1px solid ${C.border}`,background:filter===c?C.accent:"transparent",color:filter===c?"#fff":C.muted,cursor:"pointer"}}>{c}</button>)}
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(290px,1fr))",gap:16}}>
+          {filtered.map(task=><div key={task.id} className="card-hover" style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:16,overflow:"hidden",boxShadow:`0 4px 20px ${C.shadow}`}}>
+            {task.images?<img src={task.images[0]} alt="" style={{width:"100%",height:130,objectFit:"cover"}}/>:<div style={{width:"100%",height:130,background:C.accentSoft,display:"flex",alignItems:"center",justifyContent:"center",fontSize:44}}>{task.icon}</div>}
+            <div style={{padding:18}}>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}><Badge label={task.category} color={C.accent}/><Badge label={task.diff} color={dcol[task.diff]}/></div>
+              <p style={{color:C.text,fontWeight:700,fontSize:15,marginBottom:5,lineHeight:1.3}}>{task.title}</p>
+              <p style={{color:C.muted,fontSize:13,lineHeight:1.6,marginBottom:12,fontWeight:500}}>{task.desc}</p>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",borderTop:`1px solid ${C.border}`,paddingTop:12}}>
+                <div><p style={{color:C.green,fontWeight:800,fontSize:20}}>${task.reward.toFixed(2)}</p><p style={{color:C.muted,fontSize:11,marginTop:2,fontWeight:500}}>{task.time} · {task.open.toLocaleString()} open</p></div>
+                <button onClick={()=>setActiveTask(task)} style={{background:`linear-gradient(135deg,${C.accent},#818cf8)`,color:"#fff",border:"none",padding:"9px 18px",borderRadius:9,fontSize:13,fontWeight:700,cursor:"pointer"}}>Start →</button>
+              </div>
+            </div>
+          </div>)}
+        </div>
+      </>}
+      {tab==="earnings"&&<div>
+        <h2 style={{fontWeight:800,fontSize:24,marginBottom:22,color:C.text}}>Earnings History</h2>
+        {earnings.length===0?<div style={{textAlign:"center",padding:"70px 0",color:C.muted}}><p style={{fontSize:44,marginBottom:14}}>💸</p><p style={{fontSize:15,fontWeight:500}}>No earnings yet. Complete tasks to start!</p></div>:
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          {earnings.map((e,i)=><div key={i} style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:"15px 20px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div><p style={{color:C.text,fontWeight:600,fontSize:14}}>{e.task}</p><p style={{color:C.muted,fontSize:12,marginTop:2}}>{e.time}</p></div>
+            <p style={{color:C.green,fontWeight:800,fontSize:18}}>+${e.amount.toFixed(2)}</p>
+          </div>)}
+          <div style={{background:C.card,border:`1px solid ${C.green}`,borderRadius:12,padding:"15px 20px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <p style={{color:C.text,fontWeight:700}}>Total Balance</p>
+            <p style={{color:C.green,fontWeight:800,fontSize:22}}>${balance.toFixed(2)}</p>
+          </div>
+        </div>}
+      </div>}
+      {tab==="leaderboard"&&<div>
+        <h2 style={{fontWeight:800,fontSize:24,marginBottom:6,color:C.text}}>Top Earners</h2>
+        <p style={{color:C.muted,fontSize:14,marginBottom:24,fontWeight:500}}>Complete more tasks to climb the rankings</p>
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          {[{name:username,earned:balance,tasks:completed,flag:"⭐",isYou:true},...LEADERBOARD].sort((a,b)=>b.earned-a.earned).map((u,i)=><div key={u.name} style={{background:u.isYou?C.accentSoft:C.card,border:`1px solid ${u.isYou?C.accent:C.border}`,borderRadius:12,padding:"14px 20px",display:"flex",alignItems:"center",gap:14}}>
+            <div style={{width:36,height:36,borderRadius:"50%",background:i===0?"#f59e0b":i===1?"#94a3b8":i===2?"#cd7c2f":C.dim,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,color:i<3?"#000":C.muted,fontSize:13,flexShrink:0}}>#{i+1}</div>
+            <div style={{flex:1}}><p style={{color:u.isYou?C.accent:C.text,fontWeight:700,fontSize:14}}>{u.flag} {u.isYou?"You ("+username+")":u.name}</p><p style={{color:C.muted,fontSize:12,marginTop:2}}>{u.tasks} tasks</p></div>
+            <p style={{color:C.green,fontWeight:800,fontSize:18}}>${typeof u.earned==="number"?u.earned.toFixed(2):u.earned}</p>
+          </div>)}
+        </div>
+      </div>}
+      {tab==="faq"&&<FAQSection C={C}/>}
+    </main>
+    <footer style={{textAlign:"center",padding:"22px 0",borderTop:`1px solid ${C.border}`,color:C.muted,fontSize:11,fontFamily:"'JetBrains Mono',monospace",fontWeight:500,marginTop:32}}>TASKMINT · BUILT BY JALBINX · buike@outlook.com · 2026</footer>
+    <ChatWidget C={C}/>
+  </div>;
+}
+
+function App(){
+  const [screen,setScreen]=useState("landing");const [username,setUsername]=useState("");const [dark,setDark]=useState(false);
+  const C=dark?DARK:LIGHT;
+  useEffect(()=>{document.body.style.background=C.bg;document.body.style.color=C.text;},[dark,C]);
+  const toggleDark=()=>setDark(d=>!d);
+  return <>
+    {screen==="landing"&&<Landing onEnter={()=>setScreen("auth")} C={C} dark={dark} toggleDark={toggleDark}/>}
+    {screen==="auth"&&<AuthScreen onLogin={n=>{setUsername(n);setScreen("dashboard");}} C={C} dark={dark} toggleDark={toggleDark}/>}
+    {screen==="dashboard"&&<Dashboard username={username} C={C} dark={dark} toggleDark={toggleDark} onLogout={()=>setScreen("landing")}/>}
+  </>;
+}
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
